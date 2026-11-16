@@ -105,19 +105,8 @@ npm run typecheck
 
 ## Not covered yet
 
-From the plan for the full set:
-
-| Feature | Why not yet |
-| --- | --- |
-| Theme editor: style one component, then all of them | In a start.vaadin.com app it finds no theme, and its Create breaks the next start (`findings.md`) |
-| Set data on a Grid | Later |
-| Annotations (Test mode) | Later |
-| Internationalization | Experimental |
-| Figma to code (paste) | Needs Figma in the frame |
-| Sign in with a Vaadin account; keyboard shortcuts | Text or a table is enough |
-| Undo and redo | Goes through the IDE plugin (IntelliJ only); nothing to show in the browser |
-| UI Test Generation, UI Test Recorder | Experimental and changing; revisit |
-| UI Services (Hilla) | The app is Flow-first; a Hilla app later if needed |
+Copilot features without a walkthrough yet, and the ones decided against, are in this repository's GitHub issues
+("Walkthroughs for more Copilot features").
 
 ## Links from Copilot
 
