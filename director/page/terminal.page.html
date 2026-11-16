@@ -1,0 +1,88 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  /* A coding agent's terminal (Claude Code's look), drawn from state by render(). */
+  :root {
+    --mono: 'JetBrains Mono', 'JetBrainsMono Nerd Font', 'Adwaita Mono', monospace;
+    --fg: #e4e7ec; --dim: #8b93a1; --faint: #5d6573; --accent: #d97757; --ok: #4eba65; --warn: #e5a54b;
+    --add-bg: #1d3a28; --add-fg: #b8e6c4; --del-bg: #45222a; --del-fg: #f0b8c0; --rule: #3a4250; --code: #b4c7ff;
+  }
+  html, body { margin: 0; height: 100%; background: #12161d; }
+  body {
+    box-sizing: border-box; height: 100%; padding: 14px 16px 10px;
+    display: flex; flex-direction: column;
+    color: var(--fg); font: 13.5px/1.5 var(--mono);
+    -webkit-font-smoothing: antialiased;
+  }
+  #scroll { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; }
+  #scroll > * { margin-top: 10px; flex: none; }
+  .welcome { border: 1px solid var(--accent); border-radius: 8px; padding: 8px 14px; align-self: flex-start; }
+  .welcome .star { color: var(--accent); }
+  .welcome .d { color: var(--dim); }
+  .user { color: var(--dim); }
+  .user b { color: var(--fg); font-weight: 400; }
+  .msg { display: grid; grid-template-columns: 2ch 1fr; }
+  .msg .dot { color: var(--fg); }
+  .msg .dot.ok { color: var(--ok); }
+  .msg .dot.run { color: var(--faint); }
+  .msg .dot.hook { color: var(--accent); }
+  .msg b { font-weight: 700; }
+  .res { display: grid; grid-template-columns: 2ch 3ch 1fr; color: var(--dim); }
+  .res .el { grid-column: 2; }
+  .res .body { grid-column: 3; }
+  .res .body div { white-space: pre-wrap; }
+  .hl { color: var(--fg); }
+  .accent { color: var(--accent); }
+  .okc { color: var(--ok); }
+  .warnc { color: var(--warn); }
+  .code { color: var(--code); }
+  .diff { margin-top: 2px; }
+  .res .body .diff div { white-space: pre; overflow: hidden; text-overflow: ellipsis; }
+  .user .from { color: var(--accent); font-size: 12px; margin-left: 2ch; }
+  .diff .add { background: var(--add-bg); color: var(--add-fg); }
+  .diff .del { background: var(--del-bg); color: var(--del-fg); }
+  .diff .gap { color: var(--faint); }
+  .diff .n { color: var(--faint); display: inline-block; width: 4ch; text-align: right; margin-right: 1ch; }
+  .list div { white-space: pre-wrap; }
+  #spinner { color: var(--accent); margin: 12px 0 2px; min-height: 1.5em; }
+  #spinner .d { color: var(--dim); }
+  #box { border: 1px solid var(--rule); border-radius: 8px; padding: 7px 12px; margin-top: 8px; min-height: 1.5em; white-space: pre-wrap; }
+  #box .p { color: var(--dim); }
+  #box .cur { background: var(--fg); color: #12161d; }
+  #box .cur.off { background: transparent; color: inherit; }
+  #box .ph { color: var(--faint); }
+  #status { display: flex; justify-content: space-between; gap: 16px; color: var(--dim); font-size: 12.5px; padding: 6px 4px 0; min-height: 1.5em; }
+  #status .live { color: var(--ok); }
+  #status .count { color: var(--warn); }
+  .flash { animation: none; }
+</style>
+</head>
+<body>
+  <div id="scroll"></div>
+  <div id="spinner"></div>
+  <div id="box"></div>
+  <div id="status"><span id="status-left"></span><span id="status-right"></span></div>
+<script>
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  let lastBlocks = null;
+  window.renderTerminal = s => {
+    const blocks = s.blocks.join('');
+    if (blocks !== lastBlocks) {
+      document.getElementById('scroll').innerHTML = blocks;
+      lastBlocks = blocks;
+    }
+    document.getElementById('spinner').innerHTML = s.spinner
+      ? `${s.spinner.glyph} ${esc(s.spinner.text)}… <span class="d">(${s.spinner.secs >= 60 ? `${Math.floor(s.spinner.secs / 60)}m ${s.spinner.secs % 60}s` : `${s.spinner.secs}s`} · esc to interrupt)</span>`
+      : '';
+    const cursor = `<span class="cur${s.cursorOn ? '' : ' off'}"> </span>`;
+    document.getElementById('box').innerHTML = s.input
+      ? `<span class="p">&gt; </span>${esc(s.input)}${cursor}`
+      : `<span class="p">&gt; </span>${cursor}<span class="ph">${esc(s.placeholder ?? '')}</span>`;
+    document.getElementById('status-left').innerHTML = s.statusLeft ?? '';
+    document.getElementById('status-right').innerHTML = s.statusRight ?? '';
+  };
+</script>
+</body>
+</html>

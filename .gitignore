@@ -1,0 +1,8 @@
+node_modules/
+# Recordings: the clips go to vaadin/docs, not here
+out/
+# Copilot plugins fetched from cdn.vaadin.com, cached per Copilot version
+.cache/
+# The vaadin/docs clone and the secure app's copy (scripts/regenerate.ts, scripts/apps.ts)
+.work/
+__pycache__/

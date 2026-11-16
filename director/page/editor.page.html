@@ -1,0 +1,113 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  :root {
+    --mono: 'JetBrains Mono', 'JetBrainsMono Nerd Font', 'Adwaita Mono', monospace;
+    --sans: 'Inter', 'Adwaita Sans', system-ui, sans-serif;
+    --bg: #1e1f22; --panel: #2b2d30; --line: #26282e; --gutter: #4b5059; --text: #bcbec4;
+    --kw: #cf8e6d; --str: #6aab73; --num: #2aacb8; --com: #7a7e85; --ann: #b3ae60; --type: #bcbec4; --fn: #56a8f5;
+  }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); overflow: hidden; }
+  body { display: flex; flex-direction: column; font: 13px/1.6 var(--mono); }
+  .tabs { display: flex; height: 34px; background: var(--panel); border-bottom: 1px solid #1a1b1e; font: 12.5px var(--sans); }
+  .tab { display: flex; align-items: center; gap: 8px; padding: 0 14px; color: #9da0a8; }
+  .tab.on { color: #dfe1e5; background: var(--bg); box-shadow: inset 0 -2px 0 #3574f0; }
+  .tab .j { width: 14px; height: 14px; border-radius: 3px; background: #3574f0; color: #fff; font: 700 9px/14px var(--sans); text-align: center; }
+  .tab .j.css { background: #8e4ec6; }
+  .tab .dirty { width: 7px; height: 7px; border-radius: 50%; background: #dfe1e5; }
+  .crumbs { height: 26px; display: flex; align-items: center; padding: 0 14px; font: 11.5px var(--sans); color: #7a7e85; border-bottom: 1px solid #2b2d30; }
+  .code { flex: 1; position: relative; overflow: hidden; }
+  .lines { position: absolute; left: 0; right: 0; }
+  .ln { display: flex; white-space: pre; height: 20.8px; }
+  .ln.cur { background: var(--line); }
+  .n { width: 46px; flex: none; padding-right: 14px; text-align: right; color: var(--gutter); }
+  .ln.cur .n { color: #a1a3ab; }
+  .t { position: relative; }
+  .kw { color: var(--kw); } .str { color: var(--str); } .num { color: var(--num); } .com { color: var(--com); font-style: italic; }
+  .ann { color: var(--ann); } .fn { color: var(--fn); }
+  .sel { background: #214283; }
+  .caret { display: inline-block; width: 2px; height: 17px; margin-right: -2px; vertical-align: -3px; background: #ced0d6; }
+  .caret.off { visibility: hidden; }
+  .status { height: 26px; display: flex; align-items: center; gap: 14px; padding: 0 12px; background: var(--panel); border-top: 1px solid #1a1b1e; font: 11.5px var(--sans); color: #9da0a8; }
+  .status .grow { flex: 1; }
+  .status .note { color: #dfe1e5; }
+  .status .ok { color: #6aab73; }
+  .toast { position: absolute; right: 14px; bottom: 14px; padding: 8px 12px; border-radius: 8px; background: #393b40; color: #dfe1e5; font: 12px var(--sans); box-shadow: 0 6px 20px rgba(0,0,0,.4); opacity: 0; }
+  .toast.on { opacity: 1; }
+</style>
+</head>
+<body>
+  <div class="tabs"></div>
+  <div class="crumbs"></div>
+  <div class="code"><div class="lines"></div><div class="toast"></div></div>
+  <div class="status"></div>
+<script>
+  const KW = /\b(package|import|class|extends|implements|final|private|public|protected|static|new|return|if|else|var|void|this|super|for|while|try|catch|throw|null|true|false)\b/g;
+  const esc = s => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+
+  // A small Java highlighter: strings, comments, annotations, keywords, method calls.
+  function highlight(src) {
+    const out = [];
+    const re = /("(?:[^"\\]|\\.)*")|(\/\/.*$)|(@\w+)|\b(\d+)\b|\b([a-z]\w*)(?=\()|([A-Za-z_]\w*)|(\s+)|(.)/g;
+    let m;
+    while ((m = re.exec(src))) {
+      const [all, str, com, ann, num, fn, word] = m;
+      if (str) out.push(`<span class="str">${esc(str)}</span>`);
+      else if (com) out.push(`<span class="com">${esc(com)}</span>`);
+      else if (ann) out.push(`<span class="ann">${esc(ann)}</span>`);
+      else if (num) out.push(`<span class="num">${num}</span>`);
+      else if (word && KW.test(word)) { KW.lastIndex = 0; out.push(`<span class="kw">${word}</span>`); }
+      else if (fn) out.push(KW.test(fn) ? (KW.lastIndex = 0, `<span class="kw">${fn}</span>`) : `<span class="fn">${fn}</span>`);
+      else out.push(esc(all));
+      KW.lastIndex = 0;
+    }
+    return out.join('');
+  }
+
+  // A line with the selection and caret drawn in: split it at those columns and highlight the parts.
+  function lineHtml(text, sel, caret) {
+    const cuts = [...new Set([0, text.length, ...(sel ? [sel[0], sel[1]] : []), ...(caret != null ? [caret] : [])])].sort((a, b) => a - b);
+    let html = '';
+    if (!sel && caret == null) return highlight(text) || ' ';
+    // Rebuild from plain segments so selection and caret land on exact columns.
+    for (let i = 0; i < cuts.length; i++) {
+      const at = cuts[i];
+      if (caret === at && caret != null) html += '<span class="caret __CARET__"></span>';
+      if (i === cuts.length - 1) break;
+      const part = text.slice(at, cuts[i + 1]);
+      const inSel = sel && at >= sel[0] && cuts[i + 1] <= sel[1];
+      html += inSel ? `<span class="sel">${esc(part)}</span>` : highlight(part);
+    }
+    return html || ' ';
+  }
+
+  window.renderEditor = s => {
+    document.querySelector('.tabs').innerHTML = s.tabs.map(t => `<div class="tab ${t.on ? 'on' : ''}">${/\.css$/.test(t.name) ? '<span class="j css">#</span>' : '<span class="j">J</span>'}${esc(t.name)}${t.on && s.dirty ? '<span class="dirty"></span>' : ''}</div>`).join('');
+    document.querySelector('.crumbs').textContent = s.crumbs;
+    const rows = s.lines.map((text, i) => {
+      const n = i + 1;
+      const sel = s.sel && s.sel.line === n ? [s.sel.from, s.sel.to] : null;
+      const caret = s.caret && s.caret.line === n ? s.caret.col : null;
+      const cls = ['ln', s.caret && s.caret.line === n ? 'cur' : ''].join(' ');
+      const bg = s.flash && s.flash.line === n ? ` style="background: rgba(70, 140, 90, ${(0.55 * s.flash.alpha).toFixed(3)})"` : '';
+      return `<div class="${cls}"${bg}><span class="n">${n}</span><span class="t">${lineHtml(text, sel, caret).replace('__CARET__', s.caretOn ? '' : 'off')}</span></div>`;
+    });
+    const lines = document.querySelector('.lines');
+    if (lines.dataset.sig !== s.sig) {
+      lines.innerHTML = rows.join('');
+      lines.dataset.sig = s.sig;
+    } else {
+      // Only the caret blink changed.
+      lines.querySelectorAll('.caret').forEach(c => c.classList.toggle('off', !s.caretOn));
+    }
+    lines.style.top = `${-s.scroll * 20.8 + 8}px`;
+    const toast = document.querySelector('.toast');
+    toast.textContent = s.toast?.text ?? '';
+    toast.style.opacity = s.toast ? s.toast.alpha : 0;
+    document.querySelector('.status').innerHTML = `<span>${esc(s.caret ? `${s.caret.line}:${s.caret.col + 1}` : '')}</span><span>UTF-8</span><span class="grow"></span>${s.status}`;
+  };
+</script>
+</body>
+</html>

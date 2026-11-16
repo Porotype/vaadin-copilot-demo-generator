@@ -1,0 +1,19 @@
+{
+  "name": "vaadin-copilot-demo-generator",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "postinstall": "playwright install chromium && tsx scripts/check-prereqs.ts",
+    "regenerate": "tsx scripts/regenerate.ts",
+    "apps": "tsx scripts/apps.ts",
+    "scene": "tsx director/run.ts",
+    "walkthrough": "tsx director/walkthrough.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "playwright": "^1.63.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}

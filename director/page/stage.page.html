@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  :root {
+    --sans: 'Inter', 'Adwaita Sans', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', 'JetBrainsMono Nerd Font', 'Adwaita Mono', monospace;
+  }
+  html, body { margin: 0; height: 100%; }
+  body {
+    position: relative;
+    overflow: hidden;
+    font-family: var(--sans);
+    background:
+      radial-gradient(1200px 700px at 20% 10%, #24324a 0%, transparent 70%),
+      radial-gradient(900px 600px at 90% 90%, #1d3b38 0%, transparent 70%),
+      #10141c;
+  }
+  .label {
+    position: absolute; left: 30px; top: 18px;
+    display: flex; align-items: center; gap: 14px;
+    color: #c9d3e0; font-size: 17px;
+  }
+  .chip {
+    font: 700 13px/1 var(--sans); letter-spacing: .14em; text-transform: uppercase;
+    color: #10141c; background: #f5c26b; padding: 7px 11px; border-radius: 6px;
+  }
+  .win {
+    position: absolute;
+    border-radius: 12px;
+    background: #1b212b;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.08), 0 24px 60px rgba(0,0,0,.45);
+    overflow: hidden;
+  }
+  .bar {
+    height: var(--bar); display: flex; align-items: center; gap: 8px; padding: 0 14px;
+    color: #9aa6b6; font-size: 13px;
+  }
+  .dots { display: flex; gap: 7px; margin-right: 8px; }
+  .dots i { width: 11px; height: 11px; border-radius: 50%; background: #3a4352; display: block; }
+  .url {
+    flex: 1; max-width: 560px; margin: 0 auto; padding: 4px 12px; border-radius: 7px;
+    background: #10141c; color: #b6c1cf; font-size: 13px; text-align: center;
+  }
+  .browser .bar { background: #232a35; }
+  .term { background: #12161d; }
+  .term .bar { background: #12161d; border-bottom: 1px solid #222a35; font-family: var(--mono); font-size: 12.5px; }
+  .term .title { flex: 1; text-align: center; margin-right: 60px; }
+</style>
+</head>
+<body>
+<script>
+  window.drawStage = (layout, options, bar) => {
+    document.documentElement.style.setProperty('--bar', bar + 'px');
+    const el = (cls, html, rect) => {
+      const d = document.createElement('div');
+      d.className = cls;
+      d.innerHTML = html;
+      if (rect) Object.assign(d.style, { left: rect.x + 'px', top: rect.y - bar + 'px', width: rect.w + 'px', height: rect.h + bar + 'px' });
+      document.body.append(d);
+      return d;
+    };
+    const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+    if (options.label) el('label', `<span class="chip">${esc(options.label)}</span><span>${esc(options.caption ?? '')}</span>`);
+    if (options.layout !== 'terminal') el('win browser', `<div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="url">${esc(options.url)}</span></div>`, layout.browser);
+    el('win term', `<div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="title">${esc(options.terminalTitle)}</span></div>`, layout.terminal);
+  };
+</script>
+</body>
+</html>

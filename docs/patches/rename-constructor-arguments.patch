@@ -1,0 +1,75 @@
+--- a/copilot/src/main/java/com/vaadin/copilot/javarewriter/JavaRewriterUtil.java
++++ b/copilot/src/main/java/com/vaadin/copilot/javarewriter/JavaRewriterUtil.java
+@@ -1169,6 +1169,31 @@
+         return node instanceof ConstructorDeclaration;
+     }
+ 
++    /**
++     * Like {@link #findParameterUsage(ComponentInfo)}, but also includes references passed to a
++     * constructor, e.g. {@code new FormLayout(firstName, lastName)}. A rename must update those too, or
++     * the class no longer compiles.
++     */
++    private static List<Expression> findArgumentUsage(ComponentInfo componentDefinition) {
++        var createInfo = componentDefinition.getCreateInfoOrThrow();
++        List<Expression> refs;
++        if (createInfo.getFieldName() != null) {
++            refs = findUsageInClass(createInfo.getObjectCreationExpr(),
++                    body -> findNameReferences(createInfo.getFieldName(), body));
++        } else if (createInfo.getLocalVariableName() != null) {
++            refs = findNameReferences(createInfo.getLocalVariableName(), createInfo.getComponentCreateScope())
++                    .toList();
++        } else {
++            return findParameterUsage(componentDefinition);
++        }
++        return refs.stream().filter(ref -> isMethodCallArgument(ref) || isConstructorArgument(ref)).toList();
++    }
++
++    private static boolean isConstructorArgument(Expression ref) {
++        return ref.getParentNode().filter(parent -> parent instanceof ObjectCreationExpr creation
++                && creation.getArguments().contains(ref)).isPresent();
++    }
++
+     private static boolean isMethodCallArgument(Expression ref) {
+         Optional<Node> parent = ref.getParentNode();
+         if (parent.isEmpty()) {
+@@ -3052,7 +3077,7 @@
+             }
+ 
+         });
+-        findParameterUsage(componentInfo).forEach(parameter -> {
++        findArgumentUsage(componentInfo).forEach(parameter -> {
+             if (parameter instanceof NameExpr nameExpr) {
+                 nameExpr.setName(newVariableName);
+             } else {
+diff --git c/copilot/src/test/java/com/vaadin/copilot/javarewriter/JavaRewriterRenameVariableTest.java w/copilot/src/test/java/com/vaadin/copilot/javarewriter/JavaRewriterRenameVariableTest.java
+index fcea937..7248740 100644
+--- c/copilot/src/test/java/com/vaadin/copilot/javarewriter/JavaRewriterRenameVariableTest.java
++++ w/copilot/src/test/java/com/vaadin/copilot/javarewriter/JavaRewriterRenameVariableTest.java
+@@ -67,6 +67,27 @@ class JavaRewriterRenameVariableTest extends AbstractJavaRewriterTest {
+         assertContains(rewriter.getResult(), expected);
+     }
+ 
++    @Test
++    void localVariablePassedToConstructor() throws Exception {
++        AbstractJavaRewriterTest.TestRewriter rewriter = new AbstractJavaRewriterTest.TestRewriter("""
++                import com.vaadin.flow.component.html.NativeButton;
++
++                public class TestClass extends Div {
++
++                    public TestClass() {
++                        NativeButton nativebutton = new NativeButton();
++                        Div wrapper = new Div(nativebutton);
++                        add(wrapper);
++                    }
++                }
++                """);
++        ComponentInfo nativeButton = rewriter.find(new Ref(NativeButton.class, "new NativeButton", "new Div("));
++        rewriter.replaceFunctionCall(nativeButton, "setText", "Hello");
++        String result = rewriter.getResult();
++        assertContains(result, "NativeButton hello = new NativeButton();");
++        assertContains(result, "Div wrapper = new Div(hello);");
++    }
++
+     @Test
+     void localVariableMatchesChangeText() throws IOException {
+         AbstractJavaRewriterTest.TestRewriter rewriter = new AbstractJavaRewriterTest.TestRewriter("""
